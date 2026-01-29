@@ -500,27 +500,41 @@ ORDER BY embedding <=> query_embedding
 
 ---
 
-## 🔄 CI/CD with GitHub Actions
+## 🔄 Redeployment
 
-This repository includes GitHub Actions workflows for automatic deployment to Azure when you push to the `main` branch.
+### Quick Redeploy Script
 
-### Workflows
+After making code changes, use the `redeploy.ps1` script to deploy to Azure:
 
-| Workflow | Trigger | Action |
-|----------|---------|--------|
-| `deploy-backend.yml` | Push to `main` with changes in `backend/**` | Builds and deploys to Azure Container Apps |
-| `deploy-frontend.yml` | Push to `main` with changes in `frontend/**` | Builds and deploys to Azure App Service |
+```powershell
+# Deploy frontend only
+.\redeploy.ps1 -Component frontend
 
-### Setup (OIDC - No Secrets Required)
+# Deploy backend only
+.\redeploy.ps1 -Component backend
 
-The workflows use Azure OIDC (OpenID Connect) for secure, secretless authentication:
+# Deploy both
+.\redeploy.ps1 -Component both
+```
 
-1. **Federated credential is already configured** for this repo
-2. **Just push your changes** - deployments happen automatically
+The script:
+- Builds Docker images in Azure Container Registry (no local Docker required)
+- Deploys to Azure Container Apps (backend) or App Service (frontend)
+- Takes ~2 minutes to complete
 
-### Manual Trigger
+### Manual Deployment Commands
 
-You can also trigger deployments manually from the GitHub Actions tab using "Run workflow".
+If you prefer manual commands:
+
+```powershell
+# Frontend
+az acr build --registry patient360acr --image patient360-frontend:latest --build-arg NEXT_PUBLIC_API_BASE_URL="https://patient360-backend.ashystone-2d6419e3.eastus.azurecontainerapps.io" .\frontend\
+az webapp restart -g patient360-rg -n patient360-frontend
+
+# Backend
+az acr build --registry patient360acr --image patient360-backend:latest .\backend\
+az containerapp update -g patient360-rg -n patient360-backend --image patient360acr.azurecr.io/patient360-backend:latest
+```
 
 ### Deployed URLs
 
