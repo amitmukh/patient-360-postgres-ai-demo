@@ -1,0 +1,65 @@
+name: Deploy Frontend to Azure App Service
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy-frontend.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AZURE_RESOURCE_GROUP: patient360-rg
+  ACR_NAME: patient360acr
+  WEBAPP_NAME: patient360-frontend
+  IMAGE_NAME: patient360-frontend
+  BACKEND_URL: https://patient360-backend.ashystone-2d6419e3.eastus.azurecontainerapps.io
+  AZURE_CLIENT_ID: ac41ff2e-8d54-413b-8272-d6e9f33e4ab2
+  AZURE_TENANT_ID: 16b3c013-d300-468d-ac64-7eda0820b6d3
+  AZURE_SUBSCRIPTION_ID: 9f2eb6c2-0309-42b3-8098-e716c6970486
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: az acr login --name ${{ env.ACR_NAME }}
+
+      - name: Build and push image to ACR
+        run: |
+          az acr build \
+            --registry ${{ env.ACR_NAME }} \
+            --image ${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --image ${{ env.IMAGE_NAME }}:latest \
+            --build-arg NEXT_PUBLIC_API_BASE_URL=${{ env.BACKEND_URL }} \
+            ./frontend
+
+      - name: Deploy to App Service
+        run: |
+          az webapp config container set \
+            --name ${{ env.WEBAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --container-image-name ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Restart Web App
+        run: az webapp restart --name ${{ env.WEBAPP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
+
+      - name: Verify deployment
+        run: |
+          echo "Frontend deployed successfully!"
+          echo "URL: https://patient360-frontend.azurewebsites.net"
