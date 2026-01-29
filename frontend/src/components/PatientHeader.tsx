@@ -80,7 +80,7 @@ export function PatientHeader({
                 {patient.display_name}
               </h2>
               <p className="text-sm text-gray-500">
-                {patient.age}yo {patient.sex === 'M' ? 'Male' : patient.sex === 'F' ? 'Female' : 'Other'} • MRN: {patient.mrn}
+                {patient.age}yo {patient.sex === 'M' ? 'Male' : patient.sex === 'F' ? 'Female' : 'Other'} • MRN: {patient.mrn} • Patient 360
               </p>
             </div>
           </div>
