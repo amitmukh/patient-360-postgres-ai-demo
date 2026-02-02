@@ -18,7 +18,7 @@ env:
   WEBAPP_NAME: patient360-frontend
   IMAGE_NAME: patient360-frontend
   BACKEND_URL: https://patient360-backend.ashystone-2d6419e3.eastus.azurecontainerapps.io
-  AZURE_CLIENT_ID: ac41ff2e-8d54-413b-8272-d6e9f33e4ab2
+  AZURE_CLIENT_ID: 605ebbba-6a4a-4303-b9b1-0dff674e0f7f
   AZURE_TENANT_ID: 16b3c013-d300-468d-ac64-7eda0820b6d3
   AZURE_SUBSCRIPTION_ID: 9f2eb6c2-0309-42b3-8098-e716c6970486
 
@@ -63,3 +63,4 @@ jobs:
         run: |
           echo "Frontend deployed successfully!"
           echo "URL: https://patient360-frontend.azurewebsites.net"
+          echo "Deployed at: $(date)"
