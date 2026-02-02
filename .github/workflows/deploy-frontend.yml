@@ -64,3 +64,4 @@ jobs:
           echo "Frontend deployed successfully!"
           echo "URL: https://patient360-frontend.azurewebsites.net"
           echo "Deployed at: $(date)"
+          echo "Commit: ${{ github.sha }}"
