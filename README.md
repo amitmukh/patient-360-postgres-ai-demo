@@ -167,11 +167,15 @@ Open http://localhost:3000 to view the application.
 | `AZURE_AI_ENDPOINT` | Yes | Azure AI Language endpoint |
 | `AZURE_AI_KEY` | Yes | Azure AI Language key |
 | `AZURE_OPENAI_ENDPOINT` | No | Azure OpenAI endpoint (for embeddings/chat) |
-| `AZURE_OPENAI_KEY` | No | Azure OpenAI key |
+| `AZURE_OPENAI_KEY` | No | Azure OpenAI API key (if key-based auth is enabled) |
 | `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` | No | Embedding model deployment name |
 | `AZURE_OPENAI_CHAT_DEPLOYMENT` | No | Chat model deployment name |
 | `DEMO_ALLOW_RAW` | No | Set to "true" to allow raw note viewing |
 | `CORS_ORIGINS` | No | Comma-separated allowed origins |
+
+> **Authentication**: If `AZURE_OPENAI_KEY` is not set, the backend uses **Microsoft Entra ID (DefaultAzureCredential)** to authenticate with Azure OpenAI. This requires:
+> - Locally: `az login` before running the backend
+> - In Azure: A **system-assigned managed identity** on the Container App with the **"Cognitive Services OpenAI User"** role on the Azure OpenAI resource
 
 ### Frontend
 
@@ -202,7 +206,9 @@ docker run -d \
   -e DATABASE_URL="postgresql://user:pass@host:5432/db?sslmode=require" \
   -e AZURE_AI_ENDPOINT="https://your-ai.cognitiveservices.azure.com" \
   -e AZURE_AI_KEY="your-key" \
+  -e AZURE_OPENAI_ENDPOINT="https://your-openai.cognitiveservices.azure.com" \
   patient360-backend:latest
+# Note: If AZURE_OPENAI_KEY is omitted, Entra ID auth (DefaultAzureCredential) is used
 
 # Frontend
 docker run -d \
@@ -496,6 +502,7 @@ ORDER BY embedding <=> query_embedding
 - No authentication is implemented (demo purposes)
 - Raw note visibility controlled by `DEMO_ALLOW_RAW` environment variable
 - All PHI redaction happens server-side in PostgreSQL
+- Azure OpenAI uses **Entra ID (managed identity)** authentication — no API keys stored
 - Backend holds all secrets; frontend only has API URL
 
 ---
