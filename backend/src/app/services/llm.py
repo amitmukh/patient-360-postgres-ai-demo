@@ -17,6 +17,38 @@ from app.schemas import CopilotSource
 
 logger = logging.getLogger(__name__)
 
+
+def _create_azure_openai_client(settings) -> OpenAI:
+    """
+    Create an OpenAI client using Entra ID auth (DefaultAzureCredential)
+    if no API key is provided, otherwise use the API key.
+    
+    Note: A new client is created per-request, so the token is always fresh.
+    """
+    endpoint = settings.azure_openai_endpoint.rstrip('/')
+    base_url = f"{endpoint}/openai/v1/"
+
+    if settings.azure_openai_key:
+        # Key-based auth
+        return OpenAI(api_key=settings.azure_openai_key, base_url=base_url)
+    else:
+        # Entra ID (Azure AD) token-based auth
+        from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+        credential = DefaultAzureCredential()
+        token_provider = get_bearer_token_provider(
+            credential, "https://cognitiveservices.azure.com/.default"
+        )
+        token = token_provider()
+        logger.info("Using Entra ID authentication for Azure OpenAI")
+        return OpenAI(
+            api_key="entra-id-auth",  # placeholder, not used with bearer token
+            base_url=base_url,
+            default_headers={
+                "Authorization": f"Bearer {token}"
+            },
+        )
+
+
 # System instructions for clinical copilot
 SYSTEM_INSTRUCTIONS = """You are a clinical decision support assistant helping healthcare providers review patient information.
 
@@ -107,13 +139,7 @@ async def _generate_with_openai(
     
     try:
         # Responses API uses the standard OpenAI client with /openai/v1/ base_url
-        endpoint = settings.azure_openai_endpoint.rstrip('/')
-        base_url = f"{endpoint}/openai/v1/"
-        
-        client = OpenAI(
-            api_key=settings.azure_openai_key,
-            base_url=base_url
-        )
+        client = _create_azure_openai_client(settings)
         
         # Build context and prompt using shared helper
         _, user_input = _build_context_and_prompt(question, patient_name, sources)
@@ -214,13 +240,7 @@ async def _stream_with_openai(
     """Stream answer using Azure OpenAI Responses API with stream=True."""
     
     # Setup client
-    endpoint = settings.azure_openai_endpoint.rstrip('/')
-    base_url = f"{endpoint}/openai/v1/"
-    
-    client = OpenAI(
-        api_key=settings.azure_openai_key,
-        base_url=base_url
-    )
+    client = _create_azure_openai_client(settings)
     
     # First, send all sources
     for source in sources:

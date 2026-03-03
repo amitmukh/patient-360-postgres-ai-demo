@@ -46,8 +46,8 @@ class Settings(BaseSettings):
     
     @property
     def has_azure_openai(self) -> bool:
-        """Check if Azure OpenAI is configured."""
-        return bool(self.azure_openai_endpoint and self.azure_openai_key)
+        """Check if Azure OpenAI is configured (key or Entra ID)."""
+        return bool(self.azure_openai_endpoint)
     
     # Look for .env in parent directory (backend/) when running from src/
     model_config = SettingsConfigDict(
