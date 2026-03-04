@@ -23,6 +23,8 @@ A production-quality demo showcasing Azure Database for PostgreSQL AI capabiliti
                     │ Azure AI Language│  │ Azure OpenAI │  │ pgvector   │
                     │ (PHI redaction)  │  │ (embeddings) │  │ (vectors)  │
                     └──────────────────┘  └──────────────┘  └────────────┘
+
+🔐 Authentication: All Azure OpenAI calls use Microsoft Entra ID (managed identity) — no API keys required.
 ```
 
 ## 📁 Repository Structure
@@ -176,6 +178,12 @@ Open http://localhost:3000 to view the application.
 > **Authentication**: If `AZURE_OPENAI_KEY` is not set, the backend uses **Microsoft Entra ID (DefaultAzureCredential)** to authenticate with Azure OpenAI. This requires:
 > - Locally: `az login` before running the backend
 > - In Azure: A **system-assigned managed identity** on the Container App with the **"Cognitive Services OpenAI User"** role on the Azure OpenAI resource
+
+> **PostgreSQL Managed Identity**: The `azure_ai` extension also supports managed identity for embedding generation. Configure it with:
+> ```sql
+> SELECT azure_ai.set_setting('azure_openai.auth_type', 'managed-identity');
+> ```
+> This requires a **system-assigned managed identity** on the PostgreSQL Flexible Server with the **"Cognitive Services OpenAI User"** role. See [Enable Managed Identity for azure_ai](https://learn.microsoft.com/en-us/azure/postgresql/azure-ai/generative-ai-enable-managed-identity-azure-ai) for details.
 
 ### Frontend
 
@@ -502,7 +510,9 @@ ORDER BY embedding <=> query_embedding
 - No authentication is implemented (demo purposes)
 - Raw note visibility controlled by `DEMO_ALLOW_RAW` environment variable
 - All PHI redaction happens server-side in PostgreSQL
-- Azure OpenAI uses **Entra ID (managed identity)** authentication — no API keys stored
+- **Zero API keys for Azure OpenAI** — all calls use Microsoft Entra ID (managed identity):
+  - Backend (Container App) → Azure OpenAI chat via `DefaultAzureCredential`
+  - PostgreSQL (`azure_ai` extension) → Azure OpenAI embeddings via system-assigned managed identity
 - Backend holds all secrets; frontend only has API URL
 
 ---
