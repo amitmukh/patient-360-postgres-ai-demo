@@ -325,6 +325,64 @@ az webapp config appsettings set `
 
 See [deploy-azure.ps1](./deploy-azure.ps1) for the complete automated script.
 
+#### Step 5: Configure Managed Identity Authentication (No API Keys)
+
+Both the backend Container App and the PostgreSQL server use **managed identity** to authenticate with Azure OpenAI — no API keys required.
+
+##### 5a. Backend Container App → Azure OpenAI (for chat)
+
+```powershell
+# Enable system-assigned managed identity on the Container App
+az containerapp identity assign --name patient360-backend --resource-group $RESOURCE_GROUP --system-assigned
+
+# Get the principal ID
+$BACKEND_PRINCIPAL_ID = az containerapp show --name patient360-backend --resource-group $RESOURCE_GROUP --query "identity.principalId" -o tsv
+
+# Grant "Cognitive Services OpenAI User" role on the Azure OpenAI resource
+az role assignment create `
+    --assignee $BACKEND_PRINCIPAL_ID `
+    --role "Cognitive Services OpenAI User" `
+    --scope /subscriptions/<subscription-id>/resourceGroups/<openai-rg>/providers/Microsoft.CognitiveServices/accounts/<openai-resource-name>
+```
+
+##### 5b. PostgreSQL Server → Azure OpenAI (for embeddings via azure_ai extension)
+
+```powershell
+# Enable system-assigned managed identity on the PostgreSQL Flexible Server
+# (Do this in Azure Portal: Server → Security → Identity → System assigned → On)
+# Or via REST API:
+az rest --method PATCH `
+    --url "https://management.azure.com/subscriptions/<subscription-id>/resourceGroups/<pg-rg>/providers/Microsoft.DBforPostgreSQL/flexibleServers/<server-name>?api-version=2024-08-01" `
+    --body @'{"identity":{"type":"SystemAssigned"}}'
+
+# Get the principal ID
+$PG_PRINCIPAL_ID = az postgres flexible-server show --resource-group <pg-rg> --name <server-name> --query "identity.principalId" -o tsv
+
+# Grant "Cognitive Services OpenAI User" role on the Azure OpenAI resource
+az role assignment create `
+    --assignee $PG_PRINCIPAL_ID `
+    --role "Cognitive Services OpenAI User" `
+    --scope /subscriptions/<subscription-id>/resourceGroups/<openai-rg>/providers/Microsoft.CognitiveServices/accounts/<openai-resource-name>
+
+# Restart PostgreSQL server
+az postgres flexible-server restart --resource-group <pg-rg> --name <server-name>
+```
+
+Then run this SQL in the PostgreSQL database to switch from API key to managed identity:
+
+```sql
+-- Switch to managed identity authentication
+SELECT azure_ai.set_setting('azure_openai.auth_type', 'managed-identity');
+
+-- Verify
+SELECT azure_ai.get_setting('azure_openai.auth_type');
+
+-- Test embedding generation works
+SELECT azure_openai.create_embeddings('text-embedding-ada-002', 'test query');
+```
+
+> For more details, see [Enable Managed Identity for azure_ai extension](https://learn.microsoft.com/en-us/azure/postgresql/azure-ai/generative-ai-enable-managed-identity-azure-ai).
+
 ## 📖 Demo Script
 
 See [demo-script.md](./demo-script.md) for a complete 5-minute talk track.
