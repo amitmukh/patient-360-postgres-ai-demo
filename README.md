@@ -329,7 +329,24 @@ See [deploy-azure.ps1](./deploy-azure.ps1) for the complete automated script.
 
 Both the backend Container App and the PostgreSQL server use **managed identity** to authenticate with Azure OpenAI — no API keys required.
 
-##### 5a. Backend Container App → Azure OpenAI (for chat)
+##### 5a. Enable Entra ID Authentication on Azure OpenAI Resource
+
+Ensure the Azure OpenAI resource accepts Entra ID (managed identity) authentication. If key-based auth is disabled by policy, this is the only way to authenticate.
+
+```powershell
+# Verify authentication settings on the Azure OpenAI resource
+az cognitiveservices account show `
+    --name <openai-resource-name> `
+    --resource-group <openai-rg> `
+    --query "properties.disableLocalAuth" -o tsv
+
+# If you need to enable Entra ID auth alongside key-based auth (optional):
+# In Azure Portal → Azure OpenAI resource → Networking → check "Microsoft Entra ID"
+```
+
+> **Note**: If your organization has an Azure Policy that disables key-based auth (`disableLocalAuth: true`), managed identity is the **only** way to authenticate. No additional steps are needed on the Azure OpenAI resource — just assign the correct roles to the calling identities (Steps 5b and 5c below).
+
+##### 5b. Backend Container App → Azure OpenAI (for chat)
 
 ```powershell
 # Enable system-assigned managed identity on the Container App
@@ -345,7 +362,7 @@ az role assignment create `
     --scope /subscriptions/<subscription-id>/resourceGroups/<openai-rg>/providers/Microsoft.CognitiveServices/accounts/<openai-resource-name>
 ```
 
-##### 5b. PostgreSQL Server → Azure OpenAI (for embeddings via azure_ai extension)
+##### 5c. PostgreSQL Server → Azure OpenAI (for embeddings via azure_ai extension)
 
 ```powershell
 # Enable system-assigned managed identity on the PostgreSQL Flexible Server
